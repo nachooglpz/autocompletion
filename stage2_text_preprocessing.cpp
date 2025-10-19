@@ -1,4 +1,4 @@
-// g++ -o preprocessing preprocessing.cpp && ./preprocessing
+// g++ -o stage2_text_preprocessing stage2_text_preprocessing.cpp && ./stage2_text_preprocessing
 
 #include <iostream>
 #include <fstream>
