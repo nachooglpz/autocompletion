@@ -8,21 +8,22 @@
 #include <unordered_set>
 #include <fstream>
 #include <sstream>
+#include <map>
 
 struct TrieNode{
     public:
         std::unordered_map<char, std::unique_ptr<TrieNode>> children;
-        bool endOfWord;
-        TrieNode() : endOfWord(false){} // nodes are marked as false on creation
+        int frecuency;
+        TrieNode() : frecuency(0){} // nodes are marked as false on creation
 };
 
 class Trie{
     private:
         std::unique_ptr<TrieNode> root;
 
-        void dfsPrefixSearch(TrieNode* node, std::string& currentWord, std::vector<std::string>& results){
-            if(node->endOfWord){
-                results.push_back(currentWord);
+        void dfsPrefixSearch(TrieNode* node, std::string& currentWord, std::vector<std::pair<std::string, int>>& results){
+            if(node->frecuency != 0){
+                results.push_back({currentWord, node->frecuency});
             }
             for (const auto& pair : node->children){
                 currentWord.push_back(pair.first);
@@ -43,9 +44,9 @@ class Trie{
                 }
                 current = current->children[c].get();
             }
-            current->endOfWord = true;
+            current->frecuency++;
         }
-        bool search(const std::string& word){
+        int search(const std::string& word){
             TrieNode* current = root.get();
             for(char c : word) {
                 auto iterator = current->children.find(c);
@@ -54,7 +55,7 @@ class Trie{
                 }
                 current = iterator->second.get();
             }
-            return current->endOfWord;
+            return current->frecuency;
         }
 
         bool startsWith(const std::string& prefix){
@@ -70,9 +71,12 @@ class Trie{
         }
 
 
-        std::vector<std::string> prefixSearch(const std::string _prefix){
-            std::vector<std::string> results;
+        std::vector<std::pair<std::string, int>> prefixSearch(const std::string _prefix){
+            
+            // Change results type from map to vector
+            std::vector<std::pair<std::string, int>> results;
             TrieNode* current = root.get();
+            
             for (char c : _prefix){
                 auto iterator = current->children.find(c);
                 if(iterator == current->children.end()){
@@ -82,13 +86,31 @@ class Trie{
             }
 
             std::string prefix = _prefix;
-            dfsPrefixSearch(current, prefix, results);
-            return results;
+            dfsPrefixSearch(current, prefix, results); // This populates the vector
+
+            // --- ADD THIS SORTING STEP ---
+            // Sort the vector by frequency (the .second of the pair)
+            // in descending order (highest first).
+            std::sort(results.begin(), results.end(), [](const auto& a, const auto& b) {
+                return a.second > b.second; // Sorts by int, high-to-low
+            });
+
+            return results; // Return the sorted vector
         }
 
 };
 
+#include <cctype> // Add this to your includes
 
+std::string cleanWord(const std::string& raw_word) {
+    std::string cleaned = "";
+    for (char c : raw_word) {
+        if (std::isalpha(c)) { 
+            cleaned += std::tolower(c); 
+        }
+    }
+    return cleaned;
+}
 int main() {
     Trie trie;
     // open the file
@@ -104,35 +126,57 @@ int main() {
     int r = 0;
 
     while (r < content.length()) {
-        if (content[r] == ' ' ||content[r] == '\n' ){
-            trie.insert(content.substr(l, r-l));
+        if (content[r] == ' ' || content[r] == '\n' ){
+            
+            // Get the raw substring
+            std::string raw_word = content.substr(l, r-l);
+            
+            // Clean it
+            std::string cleaned_word = cleanWord(raw_word);
+            
+            // only insert if the cleaned word is not empty
+            if (!cleaned_word.empty()) {
+                trie.insert(cleaned_word);
+            }
+            
             l = r + 1;
         }
         r = r + 1;
     }
     
+    // Clean the last word too
     if (l < r) {
-        trie.insert(content.substr(l, r-l));
+        std::string cleaned_word = cleanWord(content.substr(l, r-l));
+        if (!cleaned_word.empty()) {
+            trie.insert(cleaned_word);
+        }
     }
 
 
     std::string userInput = "";
     size_t l_word = 0; // Use size_t for indices. Start at 0.
-    std::vector<std::string> suggestions;
+    
+    std::vector<std::pair<std::string, int>> suggestions;
 
     initscr();
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
-
+    int i;
     while (true) {
         // 1. Draw Screen
         clear();
         mvprintw(0, 0, "Enter text: %s", userInput.c_str());
         
+        i = 0;
+        for (const auto& suggestion : suggestions){
+            mvprintw(i + 2, 0, "- %s : %i times", suggestion.first.c_str(), suggestion.second);
+            i++;
+            if (i >= 10) break; // Good idea to add a limit
+        }/*
         for (int i = 0; i < suggestions.size(); ++i) {
             mvprintw(i + 2, 0, "- %s", suggestions[i].c_str());
-        }
+        }*/
 
         // Move cursor to the end of the input
         move(0, 12 + userInput.length());
@@ -177,12 +221,12 @@ int main() {
             // Get the current word from l_word to the end
             std::string currentWord = userInput.substr(l_word);
 
-            if (currentWord.empty()) {
+            if (cleanWord(currentWord).empty()) {
                 // This happens right after a space is typed
                 suggestions.clear();
             } else {
                 // Pass the current word to the autocomplete
-                suggestions = trie.prefixSearch(currentWord);
+                suggestions = trie.prefixSearch(cleanWord(currentWord));
             }
         }
     }
