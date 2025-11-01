@@ -6,6 +6,7 @@
 #include <sstream>
 #include <map>
 #include <cctype>
+#include <chrono>
 #include "Trie.hpp"
 
 int main() {
@@ -16,6 +17,7 @@ int main() {
 
     std::string userInput = "";
     size_t l_word = 0; // Use size_t for indices. Start at 0.
+    long long elapsed = 0;
     
     std::vector<std::pair<std::string, int>> suggestions;
 
@@ -35,6 +37,8 @@ int main() {
             i++;
             if (i >= 10) break; // Good idea to add a limit
         }
+
+        mvprintw(13, 0, "Search time: %lld ms", elapsed);
 
         // Move cursor to the end of the input
         move(0, 12 + userInput.length());
@@ -84,7 +88,10 @@ int main() {
                 suggestions.clear();
             } else {
                 // Pass the current word to the autocomplete
+                auto begin = std::chrono::high_resolution_clock::now();
                 suggestions = trie.prefixSearch(cleanWord(currentWord));
+                auto end = std::chrono::high_resolution_clock::now();
+                elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
             }
         }
     }
