@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <fstream>
 #include <sstream>
+#include <chrono>
 
 struct TrieNode{
     public:
@@ -88,12 +89,21 @@ class Trie{
 
 };
 
+std::string cleanWord(const std::string& raw_word) {
+    std::string cleaned = "";
+    for (char c : raw_word) {
+        if (std::isalpha(c)) { 
+            cleaned += std::tolower(c); 
+        }
+    }
+    return cleaned;
+}
 
 int main() {
     Trie trie;
     // open the file
     std::ifstream text("alice_wonderland.txt");
-    if (!text) std::cerr << "error opening file" << std::endl;
+    if (!text) std::cerr << "error opening file: " << "alice_wonderland.txt" << std::endl;
 
     // convert the file into a single string
     std::stringstream buffer;
@@ -104,21 +114,36 @@ int main() {
     int r = 0;
 
     while (r < content.length()) {
-        if (content[r] == ' ' ||content[r] == '\n' ){
-            trie.insert(content.substr(l, r-l));
+        if (content[r] == ' ' || content[r] == '\n' ){
+            
+            // Get the raw substring
+            std::string raw_word = content.substr(l, r-l);
+            
+            // Clean it
+            std::string cleaned_word = cleanWord(raw_word);
+            
+            // only insert if the cleaned word is not empty
+            if (!cleaned_word.empty()) {
+                trie.insert(cleaned_word);
+            }
+            
             l = r + 1;
         }
-        r = r + 1;
+        r++;
     }
     
     if (l < r) {
-        trie.insert(content.substr(l, r-l));
+        std::string cleaned_word = cleanWord(content.substr(l, r-l));
+        if (!cleaned_word.empty()) {
+            trie.insert(cleaned_word);
+        }
     }
 
 
     std::string userInput = "";
     size_t l_word = 0; // Use size_t for indices. Start at 0.
     std::vector<std::string> suggestions;
+    long long elapsed = 0;
 
     initscr();
     cbreak();
@@ -133,6 +158,8 @@ int main() {
         for (int i = 0; i < suggestions.size(); ++i) {
             mvprintw(i + 2, 0, "- %s", suggestions[i].c_str());
         }
+
+        mvprintw(suggestions.size() + 3, 0, "Search time: %lld ms", elapsed);
 
         // Move cursor to the end of the input
         move(0, 12 + userInput.length());
@@ -182,7 +209,10 @@ int main() {
                 suggestions.clear();
             } else {
                 // Pass the current word to the autocomplete
+                auto begin = std::chrono::high_resolution_clock::now();
                 suggestions = trie.prefixSearch(currentWord);
+                auto end = std::chrono::high_resolution_clock::now();
+                elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
             }
         }
     }
