@@ -3,6 +3,9 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <sstream>
+#include <iostream>
+#include <fstream>
 
 struct TrieNode{
     public:
@@ -105,7 +108,7 @@ std::string cleanWord(const std::string& raw_word) {
 
 void buildTrie(Trie &trie, std::string &textfile) {
     std::ifstream text(textfile);
-    if (!text) std::cerr << "error opening file" << std::endl;
+    if (!text) std::cerr << "error opening file: " << textfile << std::endl;
 
     // convert the file into a single string
     std::stringstream buffer;
@@ -131,7 +134,7 @@ void buildTrie(Trie &trie, std::string &textfile) {
             
             l = r + 1;
         }
-        r = r + 1;
+        r++;
     }
     
     // Clean the last word too
@@ -141,4 +144,49 @@ void buildTrie(Trie &trie, std::string &textfile) {
             trie.insert(cleaned_word);
         }
     }
+}
+
+int buildTrie(Trie &trie, std::string &textfile, bool numWords) {
+    int words = 0;
+
+    std::ifstream text(textfile);
+    if (!text) std::cerr << "error opening file: " << textfile << std::endl;
+
+    // convert the file into a single string
+    std::stringstream buffer;
+    buffer << text.rdbuf();
+    std::string content = buffer.str();
+
+    int l = 0;
+    int r = 0;
+
+    while (r < content.length()) {
+        if (content[r] == ' ' || content[r] == '\n' ){
+            
+            // Get the raw substring
+            std::string raw_word = content.substr(l, r-l);
+            
+            // Clean it
+            std::string cleaned_word = cleanWord(raw_word);
+            
+            // only insert if the cleaned word is not empty
+            if (!cleaned_word.empty()) {
+                trie.insert(cleaned_word);
+                words++;
+            }
+            
+            l = r + 1;
+        }
+        r++;
+    }
+    
+    // Clean the last word too
+    if (l < r) {
+        std::string cleaned_word = cleanWord(content.substr(l, r-l));
+        if (!cleaned_word.empty()) {
+            trie.insert(cleaned_word);
+        }
+    }
+
+    return words;
 }
